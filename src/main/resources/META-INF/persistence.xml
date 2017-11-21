@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="1.0">
+    <persistence-unit name="PersistenceUnit1">
+        <class>com.dav.sure.entity.Contact</class>
+        <properties>
+            <property name="openjpa.ConnectionURL" value="jdbc:mariadb://localhost:3306/<DB>"/>
+            <property name="openjpa.ConnectionDriverName" value="org.mariadb.jdbc.Driver"/>
+            <property name="openjpa.ConnectionUserName" value="<user>"/>
+            <property name="openjpa.ConnectionPassword" value="<password>"/>
+            <property name="openjpa.Log" value="DefaultLevel=WARN, Tool=INFO"/>
+        </properties>
+    </persistence-unit>
+</persistence>

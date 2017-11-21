@@ -1,0 +1,135 @@
+import java.util.regex.Pattern
+group 'com.alu.sure'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile group: 'org.apache.openjpa',name: 'openjpa-all',version:'2.4.2'
+    compile group: 'org.mariadb.jdbc', name:'mariadb-java-client',version:'1.1.7'
+}
+
+task cleanSchemaXml(type: Delete) {
+    delete file("schema.xml")
+}
+
+task generateSchemaXml(type: JavaExec, dependsOn: cleanSchemaXml) {
+    classpath = configurations.compile
+    main = "org.apache.openjpa.jdbc.schema.SchemaTool"
+    args "-properties", getPropertiesFile(),
+            "-action", "reflect",
+            "-file", "schema.xml"
+
+    doFirst {
+        println "Generating schema.xml..."
+    }
+
+    doLast {
+        println "Done generating schema.xml."
+        println "Updating schema.xml..."
+        //updateSchema()
+        println "Done updating schema.xml."
+    }
+}
+
+task cleanEntities(type: Delete) {
+    delete fileTree(dir: "src/gen/java")
+}
+
+task updatePersistenceUnit(type:JavaExec, dependsOn:[jar]){
+    classpath=files(configurations.compile,jar.archivePath)
+    main="com.dav.PersistenceUnitModifier"
+    args "src/gen/java","com.dav.sure.entity"
+    doFirst {
+        println "Updating persistence unit xml"
+    }
+    doLast{
+        println "Done updating persistence unit xml"
+    }
+}
+task generateEntities(type: JavaExec, dependsOn: [cleanEntities, clean,  generateSchemaXml, jar]) {
+    classpath = files(configurations.compile, jar.archivePath)  // Add this module's jar to the executed classpath, so we can use the EntityCustomizer (which is assumed to be in this module).
+    main = "org.apache.openjpa.jdbc.meta.ReverseMappingTool"
+    args "-metadata", "none",
+            "-annotations", "true",
+            "-nullableAsObject", "true",
+            "-useGenericCollections", "true",
+            "-properties", getPropertiesFile(),
+//        "-customizerClass", "{path.to.your.EntityCustomizer}",
+            "-directory", "src/gen/java",
+            "-pkg", "com.dav.sure.entity",
+            "schema.xml"
+
+    doFirst {
+        println "Generating entity classes from schema.xml..."
+    }
+
+    doLast {
+        println "Done generating entity classes."
+    }
+}
+
+private String getPropertiesFile() {
+    // File is read directly from the file-system, will not work from a Jar.
+    return file("src/main/resources/openjpa.xml").getAbsolutePath()
+}
+
+private void updateSchema() {
+    // Only this schema will be kept.
+    final def schemasToKeep = ['dbo']
+
+    // These tables will be removed from the .xml
+    final def tablesToRemove = [
+            'ReplicationMonitor', 'DDLEvents', 'AuditTrail', 'AuditTrailErrorLog', 'sysdiagrams', 'table_relations',
+            'tasks_queue', 'tasks_queue_archive',
+            '.*history'    // Remove all tables ending with 'history'.
+    ].collect { Pattern.compile(it) }
+
+    final File xmlFile = file('schema.xml')
+
+    // Read xml.
+    final def xml = new XmlParser().parse(xmlFile)
+
+    // Remove all unnecessary schemas.
+    filterSchemas(xml, schemasToKeep)
+
+    // Remove all unnecessary tables.
+    filterTables(xml, tablesToRemove)
+
+    // Save updated xml file.
+    new XmlNodePrinter(new PrintWriter(new FileWriter(xmlFile))).print(xml)
+}
+
+private void filterSchemas(Node xml, List<String> schemasToKeep) {
+    final List<Node> removedSchemas = []
+    xml.each { schema ->
+        final String name = schema.@name
+        if (!schemasToKeep.contains(name)) {
+            println("Removing schema: $name")
+            removedSchemas += schema
+        }
+    }
+    removedSchemas.each { xml.remove(it) }
+}
+
+private void filterTables(Node xml, List<Pattern> tablesToRemove) {
+    xml.each { schema ->
+        final List<Node> removedTables = []
+        schema.each { table ->
+            final String name = table.@name
+            if (tablesToRemove.any { it.matcher(name).matches() }) {
+                println("Removing table: $name")
+                removedTables += table
+            }
+        }
+        removedTables.each { schema.remove(it) }
+    }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemas>
+    <schema>
+        <table name="CONTACT">
+            <pk column="MOBILE_NUMBER"/>
+            <column name="FIRST_NAME" type="varchar" size="255"/>
+            <column name="LAST_NAME" type="varchar" size="255"/>
+            <column name="MOBILE_NUMBER" type="varchar" not-null="true" size="255"/>
+            <index name="PRIMARY" unique="true" column="MOBILE_NUMBER"/>
+        </table>
+    </schema>
+</schemas>
