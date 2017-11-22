@@ -27,7 +27,7 @@ public class PersistenceUnitModifier {
             Persistence.PersistenceUnit pu = pus.get(0);
 
             String entitiesPath = args[0];
-            File dir = new File(entitiesPath+ File.separator + args[1].replaceAll("\\.", File.separator));
+            File dir = new File(entitiesPath+ File.separator + args[1].replaceAll("\\.", "\\"+File.separator));
             List<String> classNames = getListOfClasses(dir, args[1]);
             pu.getClazz().addAll(classNames);
 
